@@ -4860,6 +4860,21 @@ body.portal-dark .dashboard-summary-date-card .tdb-time,body.portal-dark .dashbo
 @media(max-width:600px){.dashboard-wallpaper-group{padding:9px}.dashboard-wallpaper-group .dashboard-summary-grid{grid-template-columns:1fr}.dashboard-wallpaper-group .teacher-dashboard-card{padding:14px}.dashboard-summary-date-card{min-height:95px!important}}
 </style>
 
+
+<style>
+.signup-role-chooser{margin:8px 0 18px}
+.signup-role-instruction{text-align:center;font-size:14px;font-weight:700;margin:0 0 12px;color:#344054}
+.signup-role-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.signup-role-card{min-width:0;min-height:142px;padding:16px 10px;border:2px solid #d8e0e8;border-radius:14px;background:#fff;color:#17212b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:border-color .18s,background .18s,box-shadow .18s}
+.signup-role-card:hover{border-color:#08cfd0;background:#f1ffff}
+.signup-role-card.selected{border-color:#0787e8;background:#eef7ff;box-shadow:0 0 0 3px rgba(7,135,232,.12)}
+.signup-role-icon{font-size:30px;line-height:1.2}
+.signup-role-card strong{font-size:15px;letter-spacing:.5px}
+.signup-role-card small{font-size:11px;line-height:1.35;color:#667085;text-align:center;font-weight:400}
+#signupBtn:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:420px){.signup-role-grid{gap:8px}.signup-role-card{padding:12px 7px;min-height:132px}}
+</style>
+
 </head>
 
 <body>
@@ -4957,7 +4972,24 @@ Create Account
 
 <h2>Create Account</h2>
 
-<label>Teacher Name</label>
+<div id="signupRoleChooser" class="signup-role-chooser">
+  <p class="signup-role-instruction">Choose your account type</p>
+  <div class="signup-role-grid">
+    <button type="button" class="signup-role-card" id="teacherRoleCard" onclick="selectSignupRole('teacher')" aria-pressed="false">
+      <span class="signup-role-icon">🎓</span>
+      <strong>TEACHER</strong>
+      <small>For teachers who manage and teach classes</small>
+    </button>
+    <button type="button" class="signup-role-card" id="studentRoleCard" onclick="selectSignupRole('student')" aria-pressed="false">
+      <span class="signup-role-icon">📚</span>
+      <strong>STUDENT</strong>
+      <small>For students who attend online classes</small>
+    </button>
+  </div>
+</div>
+
+<div id="signupFields" class="hidden">
+<label id="signupNameLabel">Teacher Name</label>
 
 <input
 id="signupName"
@@ -5014,10 +5046,13 @@ aria-label="Show password"
 
 </div>
 
+</div>
+
 <button
 id="signupBtn"
 type="button"
 class="primary auth-btn"
+disabled
 >
 Create Account
 </button>
@@ -8183,6 +8218,25 @@ JSON.stringify(data)
    AUTH UI
 ========================================================= */
 
+let selectedSignupRole = null;
+
+function selectSignupRole(role){
+  if(role !== 'teacher' && role !== 'student') return;
+  selectedSignupRole = role;
+  const teacherCard = document.getElementById('teacherRoleCard');
+  const studentCard = document.getElementById('studentRoleCard');
+  teacherCard.classList.toggle('selected', role === 'teacher');
+  studentCard.classList.toggle('selected', role === 'student');
+  teacherCard.setAttribute('aria-pressed', String(role === 'teacher'));
+  studentCard.setAttribute('aria-pressed', String(role === 'student'));
+  document.getElementById('signupFields').classList.remove('hidden');
+  document.getElementById('signupNameLabel').textContent = role === 'teacher' ? 'Teacher Name' : 'Student Name';
+  document.getElementById('signupName').placeholder = role === 'teacher' ? 'Your teacher name' : 'Your student name';
+  document.getElementById('signupEmail').placeholder = role === 'teacher' ? 'teacher@email.com' : 'student@email.com';
+  document.getElementById('signupBtn').disabled = false;
+  clearAuthMessage();
+}
+
 function showAuthPanel(panel){
 
 document.getElementById('loginPanel')
@@ -8337,6 +8391,10 @@ false,
 
 async function createTeacherAccount(){
 
+if(!selectedSignupRole){
+return showAuthMessage('Please choose Teacher or Student first.');
+}
+
 const name=
 document.getElementById('signupName')
 .value.trim();
@@ -8355,7 +8413,7 @@ document.getElementById('signupConfirm')
 
 if(!name)
 return showAuthMessage(
-'Please enter your teacher name.'
+selectedSignupRole === 'teacher' ? 'Please enter your teacher name.' : 'Please enter your student name.'
 );
 
 if(!email)
@@ -8389,7 +8447,8 @@ password,
 options:{
 
 data:{
-full_name:name
+full_name:name,
+account_type:selectedSignupRole
 },
 
 emailRedirectTo:
