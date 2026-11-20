@@ -7445,13 +7445,13 @@ const STUDENTS_BASE_KEY='teacherDanyealStudents_v2';
 const EVALUATIONS_BASE_KEY='teacherDanyealEvaluations_v2';
 
 const SUPABASE_URL=
-'https://ifaptabszmvxgaltmrnh.supabase.co';
+'https://wpuqddchpkwyfsgvefab.supabase.co';
 
 const SUPABASE_PUBLISHABLE_KEY=
-'sb_publishable_XWdNI0Jix2y_TGMVOAfYjA_bADlqGpq';
+'sb_publishable_z2Bab0P3-4CEpHV7wHGXiA_-zOscY08';
 
 const SUPABASE_REDIRECT_URL=
-'https://td-2026000.github.io/Teacher-Management-Portal/';
+'https://td-2026000.github.io/es-kool/';
 
 /* Keep Supabase authentication sessions outside localStorage.
    Student/evaluation records can fill the browser's localStorage quota.
@@ -7554,7 +7554,7 @@ window.supabase.createClient(
   {
     auth:{
       storage:teacherAuthStorage,
-      storageKey:'sb-ifaptabszmvxgaltmrnh-auth-token',
+      storageKey:'sb-wpuqddchpkwyfsgvefab-auth-token',
       persistSession:true,
       autoRefreshToken:true,
       detectSessionInUrl:true
@@ -8393,6 +8393,9 @@ async function createTeacherAccount(){
 
 if(!selectedSignupRole){
 return showAuthMessage('Please choose Teacher or Student first.');
+}
+if(selectedSignupRole !== 'teacher' && selectedSignupRole !== 'student'){
+return showAuthMessage('Only Teacher and Student accounts are available.');
 }
 
 const name=
@@ -9679,64 +9682,41 @@ async function refreshPortalSubscriptionAccess(user=currentUser){
    SIGNED IN
 ========================================================= */
 
-function handleSignedIn(user){
-  const appShell=document.getElementById('appShell');
-  const sameUser=currentUser && user && currentUser.id===user.id;
+function ensureEsKoolRoleScreen(){
+  let screen=document.getElementById('esKoolRoleScreen');
+  if(screen) return screen;
+  screen=document.createElement('section');
+  screen.id='esKoolRoleScreen';
+  screen.style.cssText='position:fixed;inset:0;z-index:99999;background:#f5f7fb;display:none;align-items:center;justify-content:center;padding:24px;overflow:auto;font-family:inherit;';
+  screen.innerHTML=`<div style="width:min(680px,100%);background:#fff;border-radius:20px;padding:32px;box-shadow:0 12px 40px rgba(15,23,42,.10);text-align:center"><div style="font-size:38px;margin-bottom:8px">🎓</div><h1 style="margin:0 0 8px;color:#172554">Welcome to Es-kool</h1><p id="esKoolWelcomeName" style="margin:0 0 18px;color:#475569"></p><div id="esKoolRoleBadge" style="display:inline-block;padding:8px 16px;border-radius:999px;background:#e0f2fe;color:#075985;font-weight:700;margin-bottom:20px"></div><h2 id="esKoolPortalTitle" style="font-size:22px;color:#0f172a;margin:0 0 10px"></h2><p style="color:#475569;line-height:1.6;margin:0 0 22px">Your account is connected to the Es-kool database. The teacher and student workspace features will be added in the next development stage. Your account and selected role are saved.</p><button id="esKoolSignOutBtn" type="button" style="border:0;border-radius:10px;background:#0f172a;color:#fff;padding:12px 22px;font-weight:700;cursor:pointer">Sign Out</button></div>`;
+  document.body.appendChild(screen);
+  document.getElementById('esKoolSignOutBtn').addEventListener('click',()=>supabaseClient.auth.signOut());
+  return screen;
+}
 
-  // Returning to the already-open portal (or a repeated Supabase SIGNED_IN
-  // event) must not rebuild the app, hide the screen, or force Dashboard.
-  // Keep the currently selected page, open evaluation, and scroll position.
-  if(sameUser && appShell && !appShell.classList.contains('hidden')){
-    currentUser=user;
-    return Promise.resolve();
-  }
-
-  // Supabase can emit SIGNED_IN while getSession() is also restoring the same
-  // session. Share one initialization instead of running two page resets.
-  if(window.__teacherPortalSignInPromise && window.__teacherPortalSignInUserId===user.id){
-    return window.__teacherPortalSignInPromise;
-  }
-
-  window.__teacherPortalSignInUserId=user.id;
-  const task=(async()=>{
-
-  currentUser=user;
-  evaluationMemoryCache=null;
-  await loadEvaluationBackup();
-  await loadStudentsBackup();
-  const savedProfile=getTeacherProfile();
-  const fullName=savedProfile.fullName || savedProfile.full_name || user.user_metadata?.full_name || user.email || 'Teacher';
-  document.getElementById('currentTeacher').textContent=fullName;
-  document.getElementById('authScreen').classList.add('hidden');
-  // Keep the portal hidden until subscription access is checked and the correct
-  // destination page is selected. This prevents the Subscription page/layout
-  // flashing briefly before the Dashboard appears.
+async function handleSignedIn(user){
+  const screen=ensureEsKoolRoleScreen();
   document.getElementById('appShell').classList.add('hidden');
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  await refreshPortalSubscriptionAccess(user);
-  document.getElementById('appShell').classList.remove('hidden');
-  // Always land on Dashboard after login so unpaid teachers can explore the dashboard.
-  // Only the six paid teaching features are gated; subscription, profile/account,
-  // chat support and settings remain reachable without an active subscription.
-  loadTeacherProfile(); renderDashboard(); populateStudentSelect(); renderRecords();
-  Promise.allSettled([loadTeacherProfileFromSupabase(),loadStudentsFromSupabase(),loadAppointmentsFromSupabase()]).then(()=>{
-    try{loadTeacherProfile();renderDashboard();populateStudentSelect();renderRecords();}catch(error){console.warn('Background dashboard refresh skipped:',error);}
-  });
-  // Do not auto-migrate localStorage appointments on login: stale browser cache can resurrect deleted database rows. Supabase is the shared source of truth.
-  showPage('dashboard');
-  const message=document.getElementById('subscriptionSubmitMessage');
-  if(message && !portalSubscriptionUnlocked){message.textContent=portalSubscriptionGateMessage;message.style.display='block';message.style.color='#007f83';}
-  updateSubscriptionLockedNavigation();
-
-  })();
-
-  window.__teacherPortalSignInPromise=task;
-  return task.finally(()=>{
-    if(window.__teacherPortalSignInPromise===task){
-      window.__teacherPortalSignInPromise=null;
-      window.__teacherPortalSignInUserId=null;
-    }
-  });
+  document.getElementById('authScreen').classList.add('hidden');
+  screen.style.display='flex';
+  document.getElementById('esKoolWelcomeName').textContent=user.user_metadata?.full_name || user.email || 'Welcome';
+  document.getElementById('esKoolPortalTitle').textContent='Loading your account...';
+  document.getElementById('esKoolRoleBadge').textContent='Checking account type';
+  try{
+    const {data:profile,error}=await supabaseClient.from('profiles').select('full_name, role').eq('id',user.id).single();
+    if(error) throw error;
+    const role=String(profile?.role||'').toLowerCase();
+    if(role!=='teacher' && role!=='student') throw new Error('Your account role is missing or invalid. Please contact Es-kool support.');
+    document.getElementById('esKoolWelcomeName').textContent=profile.full_name || user.user_metadata?.full_name || user.email || 'Welcome';
+    document.getElementById('esKoolRoleBadge').textContent=role.toUpperCase()+' ACCOUNT';
+    document.getElementById('esKoolPortalTitle').textContent=role==='teacher'?'Teacher Workspace':'Student Workspace';
+  }catch(error){
+    console.error('Es-kool profile lookup failed:',error);
+    document.getElementById('esKoolRoleBadge').textContent='ACCOUNT CHECK';
+    document.getElementById('esKoolPortalTitle').textContent='We could not load your Es-kool profile';
+    const paragraph=screen.querySelector('p[style*="line-height"]');
+    if(paragraph) paragraph.textContent=(error.message||'Profile lookup failed')+'. Your account has not been deleted. Please contact support before trying to register again.';
+  }
 }
 
 /* =========================================================
@@ -9745,6 +9725,8 @@ function handleSignedIn(user){
 
 function handleSignedOut(){
 
+const esKoolScreen=document.getElementById('esKoolRoleScreen');
+if(esKoolScreen) esKoolScreen.style.display='none';
 currentUser=null;
 studentsMemoryCache=null;
 studentsMemoryCacheKey='';
